@@ -319,9 +319,18 @@ local portNames = {}
 for i, _ in ports do
     table.insert(portNames, i)
 end
+    
+local toggleParagraphParagraph = Tabs.Main:CreateParagraph("toggleParagraphParagraph", {
+    Title = "Ensure that you have spaned in a ship before toggling.",
+    Content = "If this script does not work, ensure you run it AFTER you have spawned in a ship.",
+})
 
 local autoFarmToggle = Tabs.Main:CreateToggle("autoFarmToggle", {Title = "Auto Farm", Default = false })
 autoFarmToggle:OnChanged(function() getgenv().SeeMen.autoFarm = autoFarmToggle.Value end)
+
+local portParagraph = Tabs.Main:CreateParagraph("portParagraph", {
+    Title = "Recommended to use ports that are close to each other.",
+})
 
 local startingPortDropdown = Tabs.Main:CreateDropdown("startingPortDropdown", {
     Title = "Starting Port",
@@ -341,8 +350,8 @@ local targetPortDropdown = Tabs.Main:CreateDropdown("targetPortDropdown", {
 targetPortDropdown:OnChanged(function(Value) getgenv().SeeMen.targetPort = Value end)
 
 local trustedPlayerParagraph = Tabs.Main:CreateParagraph("trustedPlayerParagraph", {
-    Title = "Trusted Player",
-    Content = "Automatically Server Hop When a trusted player joins the server.\n (ex: Admins, Moderators, etc.)",
+    Title = "Trusted Player Server Hop",
+    Content = "Automatically Server Hop When a trusted player joins the server.\n(ex: Admins, Moderators, etc.)",
 })
 
 local trustedPlayerToggle = Tabs.Main:CreateToggle("trustedPlayerToggle", {Title = "Anti Trusted Player", Default = false })
