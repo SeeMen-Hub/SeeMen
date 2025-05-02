@@ -1,5 +1,7 @@
 if game.PlaceId ~= 245440965 then return end
 
+repeat task.wait(0.1) until game:IsLoaded()
+
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 local SaveManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
 local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
@@ -57,7 +59,8 @@ getgenv().SeeMen = {
     autoFarm = false,
     startingPort = nil,
     targetPort = nil,
-    serverHopOnTrustedPlayer = false
+    serverHopOnTrustedPlayer = false,
+    antiAFK = false,
 }
 
 local function serverHop()
@@ -357,6 +360,9 @@ local trustedPlayerParagraph = Tabs.Main:CreateParagraph("trustedPlayerParagraph
 local trustedPlayerToggle = Tabs.Main:CreateToggle("trustedPlayerToggle", {Title = "Anti Trusted Player", Default = false })
 trustedPlayerToggle:OnChanged(function() getgenv().SeeMen.serverHopOnTrustedPlayer = trustedPlayerToggle.Value end)
 
+local antiAFKToggle = Tabs.Main:CreateToggle("antiAFKToggle", {Title = "Anti Trusted Player", Default = false })
+antiAFKToggle:OnChanged(function() getgenv().SeeMen.antiAFK = antiAFKToggle.Value end)
+
 SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
 
@@ -371,6 +377,19 @@ Library:Notify{
     Content = "The script has been loaded.",
     Duration = 8
 }
+
+-- Setup VirtualUser & Player
+local vu = game:GetService("VirtualUser")
+
+print("Anti-AFK activated")
+
+-- Connect an event so that if the player goes idle, it prevents the kick
+
+LocalPlayer.Idled:Connect(function(time)
+    if getgenv().SeeMen.antiAFK == false and time > 600 then return end
+    vu:CaptureController()
+    vu:ClickButton2(Vector2.new())
+end)
 
 while task.wait() do
     if getgenv().SeeMen.autoFarm == true then
