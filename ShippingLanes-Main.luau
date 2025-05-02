@@ -305,7 +305,7 @@ task.spawn(function()
         if getgenv().SeeMen.serverHopOnTrustedPlayer == true then
             for _, player in Players:GetPlayers() do
                 if player ~= LocalPlayer and player:GetRankInGroup(2856522) > 10 then
-                    serverHop()
+                    LocalPlayer:Kick("Kicked due to: " .. player.Name)
                     break
                 end
             end
@@ -350,8 +350,8 @@ local targetPortDropdown = Tabs.Main:CreateDropdown("targetPortDropdown", {
 targetPortDropdown:OnChanged(function(Value) getgenv().SeeMen.targetPort = Value end)
 
 local trustedPlayerParagraph = Tabs.Main:CreateParagraph("trustedPlayerParagraph", {
-    Title = "Trusted Player Server Hop",
-    Content = "Automatically Server Hop When a trusted player joins the server.\n(ex: Admins, Moderators, etc.)",
+    Title = "Trusted Player Leave",
+    Content = "Automatically Leaves When a trusted player joins the server.\n(ex: Admins, Moderators, etc.)",
 })
 
 local trustedPlayerToggle = Tabs.Main:CreateToggle("trustedPlayerToggle", {Title = "Anti Trusted Player", Default = false })
