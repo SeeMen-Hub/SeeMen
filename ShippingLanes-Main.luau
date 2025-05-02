@@ -360,7 +360,7 @@ local trustedPlayerParagraph = Tabs.Main:CreateParagraph("trustedPlayerParagraph
 local trustedPlayerToggle = Tabs.Main:CreateToggle("trustedPlayerToggle", {Title = "Anti Trusted Player", Default = false })
 trustedPlayerToggle:OnChanged(function() getgenv().SeeMen.serverHopOnTrustedPlayer = trustedPlayerToggle.Value end)
 
-local antiAFKToggle = Tabs.Main:CreateToggle("antiAFKToggle", {Title = "Anti Trusted Player", Default = false })
+local antiAFKToggle = Tabs.Main:CreateToggle("antiAFKToggle", {Title = "Anti AFK", Default = false })
 antiAFKToggle:OnChanged(function() getgenv().SeeMen.antiAFK = antiAFKToggle.Value end)
 
 SaveManager:SetLibrary(Library)
@@ -380,10 +380,6 @@ Library:Notify{
 
 -- Setup VirtualUser & Player
 local vu = game:GetService("VirtualUser")
-
-print("Anti-AFK activated")
-
--- Connect an event so that if the player goes idle, it prevents the kick
 
 LocalPlayer.Idled:Connect(function(time)
     if getgenv().SeeMen.antiAFK == false and time > 600 then return end
