@@ -402,9 +402,7 @@ end
 
 updatePorts()
 
-local lastShip
-
-while task.wait() do
+while task.wait(0.5) do
     local ship = LocalPlayer.CurrentShip.Value
     local ports = findAvailablePorts()
     if getgenv().SeeMen.autoFarm == true and ship and ports then
@@ -430,8 +428,6 @@ while task.wait() do
         end
         UndockShip()
 
-        lastShip = ship
-    elseif ship and ship ~= lastShip then
         updatePorts()
     end
 end
