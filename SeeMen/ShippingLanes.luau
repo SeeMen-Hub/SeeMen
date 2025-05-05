@@ -233,14 +233,46 @@ local function loadCargo()
 end
 
 local function unloadCargo()
-    local ship = LocalPlayer.CurrentShip.Value
-    local shipSettings = getShipSettings(ship.Name)
-    local cargoType = shipSettings["Class"]
-    if shipSettings then
-        local loads = ship.Storage.RemoteFunction:InvokeServer("GetLoads")[shipSettings["Class"]].Loads
-        for loadIter, loadTable in loads do
-            ship.Storage.RemoteFunction:InvokeServer("Unload" .. cargoType, loadIter);
+    local success, err = pcall(function()
+        local ship = LocalPlayer.CurrentShip.Value
+        local shipSettings = getShipSettings(ship.Name)
+        if not shipSettings then
+            warn("unloadCargo: no settings for ship “" .. tostring(ship.Name) .. "”")
+            return
         end
+
+        local cargoType = shipSettings.Class
+        print("Unloading cargo type:", cargoType)
+
+        -- wrap the GetLoads call itself
+        local ok, allLoads = pcall(function()
+            return ship.Storage.RemoteFunction:InvokeServer("GetLoads")
+        end)
+        if not ok or type(allLoads) ~= "table" then
+            warn("unloadCargo: failed to fetch loads:", allLoads)
+            return
+        end
+
+        local classEntry = allLoads[cargoType]
+        if not classEntry or type(classEntry.Loads) ~= "table" then
+            warn("unloadCargo: no loads found for class “" .. tostring(cargoType) .. "”")
+            return
+        end
+
+        -- iterate and unload each one, catching errors per-item
+        for loadIter, _ in pairs(classEntry.Loads) do
+            local unloaded, unloadErr = pcall(function()
+                ship.Storage.RemoteFunction:InvokeServer("Unload" .. cargoType, loadIter)
+            end)
+            if not unloaded then
+                warn(("unloadCargo: error unloading %s #%s: %s")
+                     :format(cargoType, tostring(loadIter), tostring(unloadErr)))
+            end
+        end
+    end)
+
+    if not success then
+        warn("unloadCargo: fatal error:", err)
     end
 end
 
