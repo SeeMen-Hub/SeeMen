@@ -41,6 +41,7 @@ local jobId   = game.JobId
 
 local LocalPlayer = Players.LocalPlayer
 local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart", 5)
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -52,37 +53,8 @@ getgenv().SeeMen = {
     targetPort = nil,
     serverHopOnTrustedPlayer = false,
     antiAFK = false,
+    autoRefuel = false
 }
-
-local function serverHop()
-    local servers, cursor = {}, nil
-
-    repeat
-        local url = ("https://games.roblox.com/v1/games/%d/servers/Public?limit=100%s"):format(placeId, cursor and "&cursor=" .. HttpService:UrlEncode(cursor) or "")
-
-        local success, res = pcall(HttpService.GetAsync, HttpService, url)
-        if not success then
-            LocalPlayer:Kick("Failed to fetch server list: " .. tostring(res))
-            return
-        end
-
-        local data = HttpService:JSONDecode(res)
-        for _, s in ipairs(data.data or {}) do
-            if s.id ~= jobId and s.playing < s.maxPlayers then
-                table.insert(servers, s.id)
-            end
-        end
-
-        cursor = data.nextPageCursor
-    until not cursor
-
-    if #servers == 0 then
-        LocalPlayer:Kick("No other servers available to hop to.")
-    else
-        local target = servers[math.random(1, #servers)]
-        TeleportService:TeleportToPlaceInstance(placeId, target, LocalPlayer)
-    end
-end
 
 local function getShipSettings(shipName: string)
     local shipSettings = GlobalConfig.Ships
@@ -98,6 +70,7 @@ end
 
 local function findAvailablePorts()
     local ship = LocalPlayer.CurrentShip.Value
+    if not ship then return end
     local shipSettings = getShipSettings(ship.Name)
     local shipClass = shipSettings["Class"]
     local portFolder = workspace.Ports
@@ -117,22 +90,44 @@ local function findAvailablePorts()
     return ports
 end
 
-local function DockShip()
+local function LookAt(part: Instance, targetPos: Vector3)
+    assert(typeof(part) == "Instance" and part:IsA("BasePart"), "First argument must be a BasePart")
+    assert(typeof(targetPos) == "Vector3", "Second argument must be a Vector3")
+    part.CFrame = CFrame.new(part.Position, targetPos) * CFrame.Angles(0, math.rad(-90), 0)
+end
+
+local function DockShip(targetPosition: Vector3)
     local ShipControlGui = PlayerGui:WaitForChild("ShipControlGui", 5)
     local shipControllerScript = ShipControlGui:WaitForChild("Controller", 5)
+
     local InteractionZonesModule = require(shipControllerScript.Modules.InteractionZonesModule)
+
+    local base = LocalPlayer.CurrentShip.Value.PrimaryPart
+    local baseVelocity = base.BodyVelocity
+
+    local shipSettings = getShipSettings(LocalPlayer.CurrentShip.Value.Name)
+
+    local direction, isDocked, distance
+    local speed = shipSettings["TopSpeed"]
+
     repeat
-        LocalPlayer.CurrentShip.Value.PrimaryPart.BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        distance = (targetPosition - base.Position).magnitude
+        if distance > 50 then
+            local argsStop = { "SetThrottle", 0 }
+            game.Players.LocalPlayer.CurrentShip.Value.Storage.RemoteEvent:FireServer(unpack(argsStop))
+            LookAt(base, targetPosition)
+        end
+
         InteractionZonesModule.DockShip()
-        local isDocked = LocalPlayer.CurrentShip.Value:GetAttribute("IsDocked")
-        task.wait(0.1)
+        isDocked = LocalPlayer.CurrentShip.Value:GetAttribute("IsDocked")
+
+        task.wait()
     until isDocked == true or getgenv().SeeMen.autoFarm == false
 
     local portGui = PlayerGui:WaitForChild("PortGui", 15)
     if portGui then
         local EssentialData = require(portGui.Scripts.EssentialData)
         if EssentialData then
-            -- Remove loading time wait
             EssentialData.ToggleLoading = function(time, name, gui)
                 if time == 0 then
                     return
@@ -187,7 +182,7 @@ local function UndockShip()
 
             repeat
                 local isDocked = LocalPlayer.CurrentShip.Value:GetAttribute("IsDocked")
-                task.wait(0.1)
+                task.wait(0.5)
             until isDocked == false or getgenv().SeeMen.autoFarm == false
 
             return
@@ -229,6 +224,11 @@ local function loadCargo()
                 end
             end
         end
+        if getgenv().SeeMen.autoRefuel then
+            local fuelNeeded = ship:GetAttribute("ShipFuelMax") - ship:GetAttribute("ShipFuel")
+            local args = { "RefuelShip", fuelNeeded }
+            ship.Storage.RemoteFunction:InvokeServer(unpack(args))
+        end
     end
 end
 
@@ -257,50 +257,40 @@ local function setCollisionState(ship: Model, state: boolean)
     end
 end
 
-local function moveShip(targetPosition: CFrame)
+local function moveShip(targetPosition: Vector3)
     local curShip = LocalPlayer.CurrentShip.Value
     local base = curShip.PrimaryPart
-    local baseVelocity = base.BodyVelocity
     local baseGyro = base.BodyGyro
+    local baseVelocity = base.BodyVelocity
     local shipSettings = getShipSettings(curShip.Name)
 
     assert(curShip and curShip:IsA("Model"), "Current ship must be a Model")
     assert(base and base:IsA("BasePart"), "Base must be a BasePart")
-    assert(typeof(targetPosition) == "CFrame", "targetPosition must be a CFrame")
-    assert(baseVelocity and baseVelocity:IsA("BodyVelocity"), "Base part must have a BodyVelocity")
+    assert(typeof(targetPosition) == "Vector3", "targetPosition must be a Vector3")
     assert(baseGyro and baseGyro:IsA("BodyGyro"), "Base part must have a BodyGyro")
     assert(shipSettings, "Ship settings not found")
 
-    local speed = shipSettings["TopSpeed"]
-    local direction, distance, velocity
+    local topSpeed = shipSettings["TopSpeed"] or 10
+    local distance, speed
 
-    local defForce = baseVelocity.MaxForce
-    baseVelocity.MaxForce = Vector3.new(1e10, 1e10, 1e10)
-
-    local args = { "SetThrottle", speed }
-    workspace:WaitForChild("SpawnedShips"):WaitForChild("Small Bulk Carrier"):WaitForChild("Storage"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-
-    setCollisionState(curShip, false)
+    local argsGo = { "SetThrottle", topSpeed }
+    curShip.Storage.RemoteEvent:FireServer(unpack(argsGo))
 
     repeat
-        direction = (targetPosition.Position - base.Position).unit
-        --baseGyro.CFrame = CFrame.new(base.Position, targetPosition.Position) * CFrame.Angles(0, math.rad(math.pi*0.5), 0)
+        setCollisionState(curShip, false)
 
-        distance = (targetPosition.Position - base.Position).magnitude
+        LookAt(base, targetPosition)
 
-        velocity = direction * speed * 3
-        baseVelocity.Velocity = velocity
+        distance = (targetPosition - base.Position).magnitude
 
-        task.wait(0.1)
-    until distance < 50 or getgenv().SeeMen.autoFarm == false
+        local speedU = math.sqrt((baseVelocity.Velocity.X ^ 2) + (baseVelocity.Velocity.Z ^ 2))
+        speed = speedU / 3
 
-    baseVelocity.MaxForce = defForce
-    baseVelocity.Velocity = Vector3.new(0, 0, 0)
+        task.wait()
+    until distance < 30 * speed or getgenv().SeeMen.autoFarm == false
 
-    local args = { "SetThrottle", 0 }
-    workspace:WaitForChild("SpawnedShips"):WaitForChild("Small Bulk Carrier"):WaitForChild("Storage"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-
-    setCollisionState(curShip, true)
+    local argsStop = { "SetThrottle", 0 }
+    curShip.Storage.RemoteEvent:FireServer(unpack(argsStop))
 end
 
 task.spawn(function()
@@ -308,14 +298,14 @@ task.spawn(function()
         if getgenv().SeeMen.serverHopOnTrustedPlayer == true then
             for _, player in Players:GetPlayers() do
                 if player ~= LocalPlayer and player:GetRankInGroup(2856522) > 10 then
-                    LocalPlayer:Kick("Kicked due to: " .. player.Name)
+                    LocalPlayer:Kick("Kicked due to trusted player joining: " .. player.Name)
                     break
                 end
             end
         end
     end
 end)
-    
+
 local toggleParagraphParagraph = Tabs.Main:CreateParagraph("toggleParagraphParagraph", {
     Title = "Ensure that you have spaned in a ship before toggling.",
     Content = "If this script does not work, ensure you run it AFTER you have spawned in a ship.",
@@ -324,9 +314,8 @@ local toggleParagraphParagraph = Tabs.Main:CreateParagraph("toggleParagraphParag
 local autoFarmToggle = Tabs.Main:CreateToggle("autoFarmToggle", {Title = "Auto Farm", Default = false })
 autoFarmToggle:OnChanged(function() getgenv().SeeMen.autoFarm = autoFarmToggle.Value end)
 
-local portParagraph = Tabs.Main:CreateParagraph("portParagraph", {
-    Title = "Recommended to use ports that are close to each other.",
-})
+local autoRefuelToggle = Tabs.Main:CreateToggle("autoRefuelToggle", {Title = "Auto Refuel", Default = true })
+autoRefuelToggle:OnChanged(function() getgenv().SeeMen.autoRefuel = autoRefuelToggle.Value end)
 
 local startingPortDropdown = Tabs.Main:CreateDropdown("startingPortDropdown", {
     Title = "Starting Port",
@@ -347,13 +336,13 @@ targetPortDropdown:OnChanged(function(Value) getgenv().SeeMen.targetPort = Value
 
 local trustedPlayerParagraph = Tabs.Main:CreateParagraph("trustedPlayerParagraph", {
     Title = "Trusted Player Leave",
-    Content = "Automatically Leaves When a trusted player joins the server.\n(ex: Admins, Moderators, etc.)",
+    Content = "Automatically leaves when a trusted player joins the server.\n(ex: Admins, Moderators, etc.)",
 })
 
-local trustedPlayerToggle = Tabs.Main:CreateToggle("trustedPlayerToggle", {Title = "Anti Trusted Player", Default = false })
+local trustedPlayerToggle = Tabs.Main:CreateToggle("trustedPlayerToggle", {Title = "Anti Trusted Player", Default = true })
 trustedPlayerToggle:OnChanged(function() getgenv().SeeMen.serverHopOnTrustedPlayer = trustedPlayerToggle.Value end)
 
-local antiAFKToggle = Tabs.Main:CreateToggle("antiAFKToggle", {Title = "Anti AFK", Default = false })
+local antiAFKToggle = Tabs.Main:CreateToggle("antiAFKToggle", {Title = "Anti AFK", Default = true })
 antiAFKToggle:OnChanged(function() getgenv().SeeMen.antiAFK = antiAFKToggle.Value end)
 
 Tabs.Main:CreateButton{
@@ -398,36 +387,42 @@ local function updatePorts()
 
     startingPortDropdown:SetValues(portNames)
     targetPortDropdown:SetValues(portNames)
-end
 
-updatePorts()
+    if getgenv().SeeMen.startingPort == nil then
+        startingPortDropdown:SetValue(portNames[2])
+    end
+    if getgenv().SeeMen.targetPort == nil then
+        targetPortDropdown:SetValue(portNames[1])
+    end
+end
 
 while task.wait(0.5) do
     local ship = LocalPlayer.CurrentShip.Value
     local ports = findAvailablePorts()
-    if getgenv().SeeMen.autoFarm == true and ship and ports then
-        local AvailableSpace = getAvailableSpace()
-        moveShip(CFrame.new(ports[getgenv().SeeMen.startingPort]))
-        DockShip()
-        if AvailableSpace > 0 then
-            loadCargo()
-        else
-            unloadCargo()
-            loadCargo()
-        end
-        UndockShip()
-        moveShip(CFrame.new(ports[getgenv().SeeMen.targetPort]))
-        print(getgenv().SeeMen.targetPort, type(getgenv().SeeMen.targetPort))
-        AvailableSpace = getAvailableSpace()
-        DockShip()
-        if AvailableSpace > 0 then
-            loadCargo()
-        else
-            unloadCargo()
-            loadCargo()
-        end
-        UndockShip()
+    if ports then updatePorts() end
 
-        updatePorts()
+    if getgenv().SeeMen.autoFarm == true and ship then
+        local AvailableSpace = getAvailableSpace()
+        moveShip(ports[getgenv().SeeMen.startingPort])
+        DockShip(ports[getgenv().SeeMen.startingPort])
+        if AvailableSpace > 0 then
+            loadCargo()
+        else
+            unloadCargo()
+            loadCargo()
+        end
+        UndockShip()
+        AvailableSpace = getAvailableSpace()
+        moveShip(ports[getgenv().SeeMen.targetPort])
+        DockShip(ports[getgenv().SeeMen.targetPort])
+        if AvailableSpace > 0 then
+            loadCargo()
+        else
+            unloadCargo()
+            loadCargo()
+        end
+        UndockShip()
     end
 end
+
+LocalPlayer:Kick("Kicked to prevent a ban, please rejoin")
