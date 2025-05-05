@@ -1,5 +1,8 @@
 if game.PlaceId ~= 245440965 then return end
 
+local SeeMenGameStates = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/That-Fella/SeeMen/refs/heads/main/SeeMen-Game-States.luau"))()
+if SeeMenGameStates.ShippingLanes == false then return end
+
 repeat task.wait(0.1) until game:IsLoaded()
 
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
