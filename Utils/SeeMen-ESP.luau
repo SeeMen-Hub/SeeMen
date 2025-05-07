@@ -36,13 +36,13 @@ local function createESP(pl)
     text.Center = true
     text.Visible = false
     data.Name = text
-    if ESPModule.settings.boxFill then
-        local sq = Drawing.new("Square")
-        sq.Filled = true
-        sq.Thickness = 0
-        sq.Visible = false
-        data.Fill = sq
-    end
+
+    local sq = Drawing.new("Square")
+    sq.Filled = true
+    sq.Thickness = 0
+    sq.Visible = false
+    data.Fill = sq
+
     drawings[pl] = data
 end
 
@@ -106,7 +106,7 @@ RunService.RenderStepped:Connect(function()
                 for _,ln in ipairs(d.Lines) do ln.Thickness=cfg.boxThickness end
                 if cfg.box then
                     if d.Fill then
-                        d.Fill.Color = Color3.new(0.5,0.5,0.5)
+                        d.Fill.Color = Color3.new(0.1,0.1,0.1)
                         d.Fill.Transparency = cfg.boxFillTransparency
                         d.Fill.Position = Vector2.new(minX,minY)
                         d.Fill.Size = Vector2.new(w,h)
