@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 
 local ESPModule = {}
 ESPModule.settings = {
-    toggle = true,
+    toggle = false,
     box = true,
     boxThickness = 2,
     boxFill = true,
