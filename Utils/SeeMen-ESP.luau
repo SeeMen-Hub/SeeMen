@@ -112,6 +112,10 @@ RunService.RenderStepped:Connect(function()
                         d.Fill.Size = Vector2.new(w,h)
                         d.Fill.Visible = true
                     else
+                        d.Fill.Color = Color3.new(0.1,0.1,0.1)
+                        d.Fill.Transparency = cfg.boxFillTransparency
+                        d.Fill.Position = Vector2.new(minX,minY)
+                        d.Fill.Size = Vector2.new(w,h)
                         d.Fill.Visible = false
                     end
                     local cLen = math.clamp(w*0.2,4,15)
