@@ -5,8 +5,6 @@ local Workspace = game:GetService("Workspace")
 
 local PathFindingModule = {}
 
-local path = PathfindingService:CreatePath()
-
 local player = Players.LocalPlayer
 local character = player.Character
 local humanoid = character:WaitForChild("Humanoid")
@@ -18,7 +16,10 @@ local nextWaypointIndex
 local reachedConnection
 local blockedConnection
 
-PathFindingModule.followPath = function(destination: Vector3)
+PathFindingModule.followPath = function(destination: Vector3, parameters: table)
+    local args = parameters or { AgentRadius = 3, AgentHeight = 6, AgentCanJump = true, AgentCanClimb = true, WaypointSpacing = 4, Costs = {}}
+    local path = PathfindingService:CreatePath(args)
+    
 	-- Compute the path
 	local success, errorMessage = pcall(function()
 		path:ComputeAsync(character.PrimaryPart.Position, destination)
