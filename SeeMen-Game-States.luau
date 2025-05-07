@@ -1,4 +1,4 @@
 return {
   ShippingLanes = false,
-  GenericRoleplayGaem = false
+  GenericRoleplayGaem = false,
 }
