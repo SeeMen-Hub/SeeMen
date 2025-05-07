@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 
 local ESPModule = {}
 ESPModule.settings = {
-    toggle = false,
+    toggle = true,
     box = true,
     boxThickness = 2,
     boxFill = true,
@@ -36,11 +36,13 @@ local function createESP(pl)
     text.Center = true
     text.Visible = false
     data.Name = text
-    -- Always create fill so it can be toggled on later
     local sq = Drawing.new("Square")
     sq.Filled = true
     sq.Thickness = 0
-    sq.Visible = false
+    sq.ZIndex = 1
+    sq.Color = Color3.new(0.5,0.5,0.5)
+    sq.Transparency = 1
+    sq.Visible = true
     data.Fill = sq
     drawings[pl] = data
 end
@@ -50,7 +52,7 @@ local function removeESP(pl)
     if not d then return end
     for _, line in ipairs(d.Lines) do line:Remove() end
     d.Name:Remove()
-    if d.Fill then d.Fill:Remove() end
+    d.Fill:Remove()
     drawings[pl] = nil
 end
 
@@ -64,14 +66,13 @@ Players.PlayerRemoving:Connect(removeESP)
 
 RunService.RenderStepped:Connect(function()
     local cfg = ESPModule.settings
-    if not cfg.toggle then
-        for _, d in pairs(drawings) do
-            for _, line in ipairs(d.Lines) do line.Visible = false end
-            if d.Fill then d.Fill.Visible = false end
-            d.Name.Visible = false
-        end
-        return
+    -- hide all by default
+    for _, d in pairs(drawings) do
+        for _, line in ipairs(d.Lines) do line.Visible = false end
+        d.Name.Visible = false
+        d.Fill.Transparency = 1
     end
+    if not cfg.toggle then return end
     local lpChar = LocalPlayer.Character
     local lpHRP = lpChar and lpChar:FindFirstChild("HumanoidRootPart")
     if not lpHRP then return end
@@ -97,65 +98,41 @@ RunService.RenderStepped:Connect(function()
                     end
                 end
                 if minX > maxX then
-                    minX = root2d.X - 20; minY = root2d.Y - 50
-                    maxX = root2d.X + 20; maxY = root2d.Y + 50
+                    minX = root2d.X - 20
+                    minY = root2d.Y - 50
+                    maxX = root2d.X + 20
+                    maxY = root2d.Y + 50
                 end
-                local w, h = maxX - minX, maxY - minY
+                local w = maxX - minX
+                local h = maxY - minY
                 local col = pl.TeamColor.Color
-                -- update line thickness
-                for _, ln in ipairs(d.Lines) do ln.Thickness = cfg.boxThickness end
-                if cfg.box then
-                    -- update fill properties and visibility per setting
-                    if d.Fill then
-                        d.Fill.Color = Color3.new(0.5, 0.5, 0.5)
-                        d.Fill.Transparency = cfg.boxFillTransparency
-                        d.Fill.Position = Vector2.new(minX, minY)
-                        d.Fill.Size = Vector2.new(w, h)
-                        d.Fill.Visible = cfg.boxFill
-                    end
-                    local cLen = math.clamp(w * 0.2, 4, 15)
-                    -- draw corners
-                    d.Lines[1].From, d.Lines[1].To = Vector2.new(minX, minY), Vector2.new(minX + cLen, minY)
-                    d.Lines[2].From, d.Lines[2].To = Vector2.new(minX, minY), Vector2.new(minX, minY + cLen)
-                    d.Lines[3].From, d.Lines[3].To = Vector2.new(maxX - cLen, minY), Vector2.new(maxX, minY)
-                    d.Lines[4].From, d.Lines[4].To = Vector2.new(maxX, minY), Vector2.new(maxX, minY + cLen)
-                    d.Lines[5].From, d.Lines[5].To = Vector2.new(minX, maxY), Vector2.new(minX + cLen, maxY)
-                    d.Lines[6].From, d.Lines[6].To = Vector2.new(minX, maxY - cLen), Vector2.new(minX, maxY)
-                    d.Lines[7].From, d.Lines[7].To = Vector2.new(maxX - cLen, maxY), Vector2.new(maxX, maxY)
-                    d.Lines[8].From, d.Lines[8].To = Vector2.new(maxX, maxY - cLen), Vector2.new(maxX, maxY)
-                    for _, ln in ipairs(d.Lines) do ln.Color = col; ln.Visible = true end
-                else
-                    for _, ln in ipairs(d.Lines) do ln.Visible = false end
-                    if d.Fill then d.Fill.Visible = false end
+                for _, ln in ipairs(d.Lines) do
+                    ln.Thickness = cfg.boxThickness
                 end
-                -- update name settings
-                d.Name.Size = cfg.nameTextSize
-                d.Name.Outline = cfg.nameTextOutline
+                if cfg.box then
+                    local trans = cfg.boxFill and cfg.boxFillTransparency or 1
+                    d.Fill.Position = Vector2.new(minX, minY)
+                    d.Fill.Size = Vector2.new(w, h)
+                    d.Fill.Transparency = trans
+                    for _, ln in ipairs(d.Lines) do
+                        ln.Color = col
+                        ln.Visible = true
+                    end
+                end
                 if cfg.showName then
                     local delta = hrp.Position - lpHRP.Position
-                    local distSqr = delta:Dot(delta)
-                    if distSqr <= cfg.maxNameDistance * cfg.maxNameDistance then
+                    if delta:Dot(delta) <= cfg.maxNameDistance * cfg.maxNameDistance then
                         local txt = pl.Name
                         if cfg.showTeamName then txt = txt .. " [" .. pl.Team.Name .. "]" end
                         d.Name.Text = txt
                         d.Name.Position = Vector2.new(minX + w/2, minY - 18)
                         d.Name.Color = col
+                        d.Name.Size = cfg.nameTextSize
+                        d.Name.Outline = cfg.nameTextOutline
                         d.Name.Visible = true
-                    else
-                        d.Name.Visible = false
                     end
-                else
-                    d.Name.Visible = false
                 end
-            else
-                for _, ln in ipairs(d.Lines) do ln.Visible = false end
-                if d.Fill then d.Fill.Visible = false end
-                d.Name.Visible = false
             end
-        else
-            for _, ln in ipairs(d.Lines) do ln.Visible = false end
-            if d.Fill then d.Fill.Visible = false end
-            d.Name.Visible = false
         end
     end
 end)
