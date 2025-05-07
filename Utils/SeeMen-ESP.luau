@@ -7,7 +7,7 @@ local MAX_DISTANCE = 100
 local MAX_DIST_SQR = MAX_DISTANCE * MAX_DISTANCE
 
 if getgenv().ESPEnabled == nil then
-    getgenv().SeeMen.Universal.ESP.enabled = true
+    getgenv().SeeMen.Universal.ESP.enabled = false
 end
 
 local BBOX_OFFSETS = {
