@@ -105,12 +105,14 @@ RunService.RenderStepped:Connect(function()
                 local col = pl.TeamColor.Color
                 for _,ln in ipairs(d.Lines) do ln.Thickness=cfg.boxThickness end
                 if cfg.box then
-                    if d.Fill then
+                    if d.Fill and cfg.BoxFill then
                         d.Fill.Color = Color3.new(0.1,0.1,0.1)
                         d.Fill.Transparency = cfg.boxFillTransparency
                         d.Fill.Position = Vector2.new(minX,minY)
                         d.Fill.Size = Vector2.new(w,h)
                         d.Fill.Visible = true
+                    else
+                        d.Fill.Visible = false
                     end
                     local cLen = math.clamp(w*0.2,4,15)
                     d.Lines[1].From,d.Lines[1].To = Vector2.new(minX,minY),Vector2.new(minX+cLen,minY)
