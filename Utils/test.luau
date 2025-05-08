@@ -1,4 +1,4 @@
-queue_on_teleport(loadstring(game:HttpGet(""))())
+queue_on_teleport(loadstring(game:HttpGet("https://raw.githubusercontent.com/That-Fella/SeeMen/refs/heads/main/Utils/test.luau"))())
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
