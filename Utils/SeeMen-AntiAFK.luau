@@ -15,3 +15,5 @@ plr.Idled:Connect(function(time)
     vu:CaptureController()
     vu:ClickButton2(Vector2.new())
 end)
+
+return antiAFK
