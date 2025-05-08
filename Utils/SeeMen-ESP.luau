@@ -102,7 +102,7 @@ RunService.RenderStepped:Connect(function()
                     maxX = root2d.X+20; maxY = root2d.Y+50
                 end
                 local w,h = maxX-minX, maxY-minY
-                local col = pl.TeamColor.Color
+                local col = pl.Team and pl.TeamColor.Color or Color3.new(1,1,1) -- fallback color if no team
                 for _,ln in ipairs(d.Lines) do ln.Thickness=cfg.boxThickness end
                 if cfg.box then
                     if d.Fill then
@@ -132,7 +132,9 @@ RunService.RenderStepped:Connect(function()
                     local distSqr = (hrp.Position - lpHRP.Position).Magnitude^2
                     if distSqr <= cfg.maxNameDistance^2 then
                         local txt = pl.Name
-                        if cfg.showTeamName then txt = txt .. " ["..pl.Team.Name.."]" end
+                        if cfg.showTeamName and pl.Team then
+                            txt = txt .. " ["..pl.Team.Name.."]"
+                        end
                         d.Name.Text = txt
                         d.Name.Position = Vector2.new(minX+w/2,minY-18)
                         d.Name.Color = col
