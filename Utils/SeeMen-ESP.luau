@@ -15,6 +15,7 @@ ESPModule.settings = {
     maxNameDistance = 100,
     nameTextSize = 14,
     nameTextOutline = true,
+    showTeamOnly = false
 }
 
 local BBOX_OFFSETS = {
