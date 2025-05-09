@@ -77,6 +77,14 @@ RunService.RenderStepped:Connect(function()
     local lpHRP = lpChar and lpChar:FindFirstChild("HumanoidRootPart")
     if not lpHRP then return end
     for pl,d in pairs(drawings) do
+        -- NEW: skip if same team and setting is off
+        if cfg.showTeamOnly == false and pl.Team ~= nil and LocalPlayer.Team ~= nil and pl.Team == LocalPlayer.Team then
+            for _,ln in ipairs(d.Lines) do ln.Visible = false end
+            if d.Fill then d.Fill.Visible = false end
+            d.Name.Visible = false
+            continue
+        end
+
         local c = pl.Character
         local hrp = c and c:FindFirstChild("HumanoidRootPart")
         local hum = c and c:FindFirstChild("Humanoid")
@@ -102,7 +110,7 @@ RunService.RenderStepped:Connect(function()
                     maxX = root2d.X+20; maxY = root2d.Y+50
                 end
                 local w,h = maxX-minX, maxY-minY
-                local col = pl.Team and pl.TeamColor.Color or Color3.new(1,1,1) -- fallback color if no team
+                local col = pl.Team and pl.TeamColor.Color or Color3.new(1,1,1)
                 for _,ln in ipairs(d.Lines) do ln.Thickness=cfg.boxThickness end
                 if cfg.box then
                     if d.Fill then
