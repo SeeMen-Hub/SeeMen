@@ -8,6 +8,7 @@ local camera = workspace.CurrentCamera
 local espModule = {}
 espModule.settings = {
     enabled = false,
+    dropIn = true,
     showBox = true,
     boxThickness = 2,
     fillBox = true,
@@ -18,15 +19,15 @@ espModule.settings = {
     showTeamName = true,
     showDistance = true,
     maxTextDistance = 150,
-    textDistance = 15,
+    textSize = 15,
     outlineText = true,
     showTeam = false,
     useTeamColor = false,
     fallbackColor = Color3.new(0.3, 0.5, 1),
     playerOverrides = {},    -- ["PlayerName"] = { enabled=false, showBox=false, tracers=false, ... }
-    showHealthBar = true,
+    showHealthBar = false,
     healthBarPosition = "Left",
-    tracers = true,
+    tracers = false,
     tracerTransparency = 0.5,
     tracerOrigin = "middle",
 }
@@ -98,11 +99,15 @@ function espModule.removeEsp(player)
     espDrawings[player] = nil
 end
 
-for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then espModule.createEsp(p) end end
-Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then espModule.createEsp(p) end end)
 Players.PlayerRemoving:Connect(espModule.removeEsp)
 
+local droppedIn = false
+
 RunService.RenderStepped:Connect(function()
+    if espModule.settings.dropIn and droppedIn == false then
+        for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then espModule.createEsp(p) end end
+        Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then espModule.createEsp(p) end end)
+    end
     local localChar = localPlayer.Character
     local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
     if not localRoot then return end
@@ -298,7 +303,7 @@ RunService.RenderStepped:Connect(function()
 
                 -- distance text
                 if get("showDistance") and withinDist then
-                    d.distanceText.Size = get("textDistance")
+                    d.distanceText.Size = get("textSize")
                     d.distanceText.Outline = get("outlineText")
                     d.distanceText.Text = math.floor((rootPart.Position - localRoot.Position).Magnitude)
                     d.distanceText.Position = Vector2.new(minX + width/2, maxY + 4)
@@ -310,7 +315,7 @@ RunService.RenderStepped:Connect(function()
 
                 -- name text
                 if get("showName") and withinDist then
-                    d.nameText.Size = get("textDistance")
+                    d.nameText.Size = get("textSize")
                     d.nameText.Outline = get("outlineText")
                     local txt = (get("useDisplayName") and player.DisplayName) or player.Name
                     if get("showTeamName") and player.Team then txt = txt .. " [" .. player.Team.Name .. "]" end
