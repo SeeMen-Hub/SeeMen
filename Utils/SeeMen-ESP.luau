@@ -21,6 +21,7 @@ espModule.settings = {
     maxTextDistance = 150,
     textSize = 15,
     outlineText = true,
+    showTeam = true,
     useTeamColor = true,
     fallbackColor = Color3.new(0.3, 0.5, 1),
     playerOverrides = {},    -- ["PlayerName"] = { enabled=false, showBox=false, tracers=false, ... }
@@ -305,7 +306,7 @@ RunService.RenderStepped:Connect(function()
                 if get("showDistance") and withinDist then
                     d.distanceText.Size = get("textSize")
                     d.distanceText.Outline = get("outlineText")
-                    d.distanceText.Text = math.floor((rootPart.Position - localRoot.Position).Magnitude)
+                    d.distanceText.Text = "[" .. math.floor((rootPart.Position - localRoot.Position).Magnitude) .. "]"
                     d.distanceText.Position = Vector2.new(minX + width/2, maxY + 4)
                     d.distanceText.Color = colorBase
                     d.distanceText.Visible = true
