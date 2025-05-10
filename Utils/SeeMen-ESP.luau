@@ -8,7 +8,7 @@ local camera = workspace.CurrentCamera
 local espModule = {}
 espModule.settings = {
     enabled = false,
-    dropIn = false,
+    _dropIn = false,
     showBox = false,
     boxThickness = 2,
     fillBox = false,
@@ -99,16 +99,12 @@ function espModule.removeEsp(player)
     espDrawings[player] = nil
 end
 
+
+for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then espModule.createEsp(p) end end
+Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then espModule.createEsp(p) end end)
 Players.PlayerRemoving:Connect(espModule.removeEsp)
 
-local droppedIn = false
-
 RunService.RenderStepped:Connect(function()
-    if espModule.settings.dropIn and droppedIn == false then
-        droppedIn = true
-        for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then espModule.createEsp(p) end end
-        Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then espModule.createEsp(p) end end)
-    end
     local localChar = localPlayer.Character
     local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
     if not localRoot then return end
