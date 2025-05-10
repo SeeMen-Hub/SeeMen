@@ -21,7 +21,7 @@ espModule.settings = {
     maxTextDistance = 150,
     textSize = 15,
     outlineText = false,
-    showTeam = false,
+    showTeam = true,
     useTeamColor = false,
     fallbackColor = Color3.new(0.3, 0.5, 1),
     playerOverrides = {},    -- ["PlayerName"] = { enabled=false, showBox=false, tracers=false, ... }
