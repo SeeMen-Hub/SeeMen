@@ -136,6 +136,7 @@ RunService.RenderStepped:Connect(function()
                 if d.originalDisplayDistance then humanoid.DisplayDistanceType = d.originalDisplayDistance end
                 if d.originalHealthDisplay then humanoid.HealthDisplayType = d.originalHealthDisplay end
             end
+            continue
         end
 
         -- team filter
