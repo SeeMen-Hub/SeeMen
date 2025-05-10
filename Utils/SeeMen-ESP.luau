@@ -21,13 +21,12 @@ espModule.settings = {
     maxTextDistance = 150,
     textSize = 15,
     outlineText = true,
-    showTeam = false,
-    useTeamColor = false,
+    useTeamColor = true,
     fallbackColor = Color3.new(0.3, 0.5, 1),
     playerOverrides = {},    -- ["PlayerName"] = { enabled=false, showBox=false, tracers=false, ... }
-    showHealthBar = false,
+    showHealthBar = true,
     healthBarPosition = "Left",
-    tracers = false,
+    tracers = true,
     tracerTransparency = 0.5,
     tracerOrigin = "middle",
 }
@@ -105,6 +104,7 @@ local droppedIn = false
 
 RunService.RenderStepped:Connect(function()
     if espModule.settings.dropIn and droppedIn == false then
+        droppedIn = true
         for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then espModule.createEsp(p) end end
         Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then espModule.createEsp(p) end end)
     end
