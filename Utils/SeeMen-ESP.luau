@@ -1,202 +1,345 @@
-local Players      = game:GetService("Players")
-local RunService   = game:GetService("RunService")
-local LocalPlayer  = Players.LocalPlayer
-local Camera       = workspace.CurrentCamera
--- we up baby
-local ESPModule = {}
-ESPModule.settings = {
-    toggle             = true,
-    box                = true,
-    boxThickness       = 2,
-    boxFill            = true,
-    boxFillTransparency= 0.3,
-    showName           = true,
-    showTeamName       = true,
-    maxNameDistance    = 100,
-    nameTextSize       = 14,
-    nameTextOutline    = true,
-    showTeamOnly       = false,
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local localPlayer = Players.LocalPlayer
+local mouse = localPlayer:GetMouse()
+local camera = workspace.CurrentCamera
+
+local espModule = {}
+espModule.settings = {
+    enabled = true,
+    dropIn = false,
+    showBox = true,
+    boxThickness = 2,
+    fillBox = true,
+    fillBoxColor = Color3.new(0, 0, 0),
+    fillTransparency = 0.3,
+    showName = true,
+    useDisplayName = true,
+    showTeamName = true,
+    showDistance = true,
+    maxTextDistance = 150,
+    textDistance = 15,
+    outlineText = true,
+    showTeam = false,
+    useTeamColor = false,
+    fallbackColor = Color3.new(0.3, 0.5, 1),
+    playerOverrides = {},    -- ["PlayerName"] = { enabled=false, showBox=false, tracers=false, ... }
+    showHealthBar = true,
+    healthBarPosition = "Left",
+    tracers = true,
+    tracerTransparency = 0.5,
+    tracerOrigin = "middle",
 }
 
-local BBOX_OFFSETS = {
+local bboxOffsets = {
     Vector3.new(1,1,1), Vector3.new(1,1,-1), Vector3.new(1,-1,1), Vector3.new(1,-1,-1),
-    Vector3.new(-1,1,1),Vector3.new(-1,1,-1),Vector3.new(-1,-1,1),Vector3.new(-1,-1,-1),
+    Vector3.new(-1,1,1), Vector3.new(-1,1,-1), Vector3.new(-1,-1,1), Vector3.new(-1,-1,-1),
 }
 
--- holds Drawing objects for every non‑local player
-local drawings = {}
-local highlightedPlayer = nil
+local espDrawings = {}
 
-function ESPModule.createESP(pl)
-    local data = { Lines = {}, Name = nil, Fill = nil }
-    -- 8 corner lines
+function espModule.createEsp(player)
+    local data = {
+        lines = {},
+        tracer = Drawing.new("Line"),
+        nameText = Drawing.new("Text"),
+        distanceText = Drawing.new("Text"),
+        fillBox = Drawing.new("Square"),
+        healthBg = Drawing.new("Square"),
+        healthOutline = Drawing.new("Square"),
+        healthBar = Drawing.new("Square"),
+        originalDisplayDistance = nil,
+        originalHealthDisplay = nil,
+    }
+    -- tracer
+    data.tracer.ZIndex = 1
+    data.tracer.Visible = false
+    data.tracer.Thickness = espModule.settings.boxThickness
+    -- corners
     for i = 1, 8 do
         local line = Drawing.new("Line")
         line.ZIndex = 2
         line.Visible = false
-        data.Lines[i] = line
+        line.Thickness = espModule.settings.boxThickness
+        data.lines[i] = line
     end
-    -- name text
-    local text = Drawing.new("Text")
-    text.Center = true
-    text.Visible = false
-    data.Name = text
-    -- fill square
-    local sq = Drawing.new("Square")
-    sq.Filled = true
-    sq.Thickness = 0
-    sq.Visible = false
-    data.Fill = sq
+    -- fill
+    data.fillBox.Filled = true
+    data.fillBox.Thickness = 0
+    data.fillBox.ZIndex = 1
+    data.fillBox.Visible = false
+    -- name
+    data.nameText.Center = true
+    data.nameText.ZIndex = 4
+    data.nameText.Visible = false
+    -- distance
+    data.distanceText.Center = true
+    data.distanceText.ZIndex = 4
+    data.distanceText.Visible = false
+    -- health
+    data.healthBg.Filled = true; data.healthBg.Thickness = 0; data.healthBg.ZIndex = 3; data.healthBg.Visible = false
+    data.healthOutline.Filled = false; data.healthOutline.Thickness = 1; data.healthOutline.Color = Color3.new(0,0,0); data.healthOutline.ZIndex = 3; data.healthOutline.Visible = false
+    data.healthBar.Filled = true; data.healthBar.Thickness = 0; data.healthBar.ZIndex = 3; data.healthBar.Visible = false
 
-    drawings[pl] = data
+    espDrawings[player] = data
 end
 
-function ESPModule.removeESP(pl)
-    local d = drawings[pl]
+function espModule.removeEsp(player)
+    local d = espDrawings[player]
     if not d then return end
-    for _, line in ipairs(d.Lines) do line:Remove() end
-    d.Name:Remove()
-    d.Fill:Remove()
-    drawings[pl] = nil
+    d.tracer:Remove()
+    for _, line in ipairs(d.lines) do line:Remove() end
+    d.fillBox:Remove()
+    d.nameText:Remove()
+    d.distanceText:Remove()
+    d.healthBg:Remove()
+    d.healthOutline:Remove()
+    d.healthBar:Remove()
+    espDrawings[player] = nil
 end
 
-function ESPModule.highlightPlayer(pl)
-    highlightedPlayer = pl
+if espModule.settings.dropIn then
+    for _, p in ipairs(Players:GetPlayers()) do if p ~= localPlayer then espModule.createEsp(p) end end
+    Players.PlayerAdded:Connect(function(p) if p ~= localPlayer then espModule.createEsp(p) end end)
 end
+Players.PlayerRemoving:Connect(espModule.removeEsp)
 
-function ESPModule.clearHighlight()
-    highlightedPlayer = nil
-end
-
--- initialize and cleanup
-for _, pl in ipairs(Players:GetPlayers()) do
-    if pl ~= LocalPlayer then ESPModule.createESP(pl) end
-end
-Players.PlayerAdded:Connect(function(pl)
-    if pl ~= LocalPlayer then ESPModule.createESP(pl) end
-end)
-Players.PlayerRemoving:Connect(ESPModule.removeESP)
-
--- Main render loop
 RunService.RenderStepped:Connect(function()
-    local cfg = ESPModule.settings
-    if not cfg.toggle then
-        -- hide everything if ESP globally off
-        for _, d in pairs(drawings) do
-            for _, ln in ipairs(d.Lines) do ln.Visible = false end
-            d.Fill.Visible = false
-            d.Name.Visible = false
-        end
-        return
-    end
+    local localChar = localPlayer.Character
+    local localRoot = localChar and localChar:FindFirstChild("HumanoidRootPart")
+    if not localRoot then return end
 
-    local target = highlightedPlayer
-    -- hide all except the one target
-    for pl, d in pairs(drawings) do
-        if pl ~= target then
-            for _, ln in ipairs(d.Lines) do ln.Visible = false end
-            d.Fill.Visible = false
-            d.Name.Visible = false
-        end
-    end
-
-    -- if there's no highlighted player, nothing to draw
-    if not target then
-        return
-    end
-
-    -- ensure target is still valid
-    local char = target.Character
-    if not char then return end
-    local hrp  = char:FindFirstChild("HumanoidRootPart")
-    local hum  = char:FindFirstChild("Humanoid")
-    if not (hrp and hum and hum.Health > 0) then return end
-
-    local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-    if not onScreen then return end
-
-    -- get the 3D bounding box corners in screen space
-    local boxCF, boxSize = char:GetBoundingBox()
-    local half = boxSize * 0.5
-    local minX, minY = math.huge, math.huge
-    local maxX, maxY = -math.huge, -math.huge
-    for i = 1, 8 do
-        local worldPt = boxCF:PointToWorldSpace(BBOX_OFFSETS[i] * half)
-        local sp, vis = Camera:WorldToViewportPoint(worldPt)
-        if vis then
-            minX = math.min(minX, sp.X)
-            minY = math.min(minY, sp.Y)
-            maxX = math.max(maxX, sp.X)
-            maxY = math.max(maxY, sp.Y)
-        end
-    end
-    if minX > maxX then
-        -- fallback box
-        minX = screenPos.X - 20; minY = screenPos.Y - 50
-        maxX = screenPos.X + 20; maxY = screenPos.Y + 50
-    end
-
-    local w, h = maxX - minX, maxY - minY
-    local color = target.Team and target.TeamColor.Color or Color3.new(1,1,1)
-
-    -- team filter
-    if cfg.showTeamOnly and target.Team and LocalPlayer.Team and target.Team ~= LocalPlayer.Team then
-        return
-    end
-
-    -- do the box
-    local d = drawings[target]
-    for _, ln in ipairs(d.Lines) do ln.Thickness = cfg.boxThickness end
-    if cfg.box then
-        d.Fill.Color       = Color3.new(0.1,0.1,0.1)
-        d.Fill.Transparency= cfg.boxFillTransparency
-        d.Fill.Position    = Vector2.new(minX, minY)
-        d.Fill.Size        = Vector2.new(w, h)
-        d.Fill.Visible     = cfg.boxFill
-
-        local cornerLen = math.clamp(w * 0.2, 4, 15)
-        -- top-left
-        d.Lines[1].From, d.Lines[1].To = Vector2.new(minX, minY), Vector2.new(minX+cornerLen, minY)
-        d.Lines[2].From, d.Lines[2].To = Vector2.new(minX, minY), Vector2.new(minX, minY+cornerLen)
-        -- top-right
-        d.Lines[3].From, d.Lines[3].To = Vector2.new(maxX-cornerLen, minY), Vector2.new(maxX, minY)
-        d.Lines[4].From, d.Lines[4].To = Vector2.new(maxX, minY), Vector2.new(maxX, minY+cornerLen)
-        -- bottom-left
-        d.Lines[5].From, d.Lines[5].To = Vector2.new(minX, maxY), Vector2.new(minX+cornerLen, maxY)
-        d.Lines[6].From, d.Lines[6].To = Vector2.new(minX, maxY-cornerLen), Vector2.new(minX, maxY)
-        -- bottom-right
-        d.Lines[7].From, d.Lines[7].To = Vector2.new(maxX-cornerLen, maxY), Vector2.new(maxX, maxY)
-        d.Lines[8].From, d.Lines[8].To = Vector2.new(maxX, maxY-cornerLen), Vector2.new(maxX, maxY)
-
-        for _, ln in ipairs(d.Lines) do
-            ln.Color   = color
-            ln.Visible = true
-        end
-    else
-        for _, ln in ipairs(d.Lines) do ln.Visible = false end
-        d.Fill.Visible = false
-    end
-
-    -- draw the name/text
-    d.Name.Size    = cfg.nameTextSize
-    d.Name.Outline = cfg.nameTextOutline
-    if cfg.showName then
-        local dist2 = (hrp.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude^2
-        if dist2 <= cfg.maxNameDistance^2 then
-            local txt = target.Name
-            if cfg.showTeamName and target.Team then
-                txt = txt .. " ["..target.Team.Name.."]"
+    for player, d in pairs(espDrawings) do
+        -- per-player overrides
+        local settings = espModule.settings
+        local override = settings.playerOverrides[player.Name] or {}
+        local function get(key)
+            if override[key] ~= nil then
+                return override[key]
+            else
+                return settings[key]
             end
-            d.Name.Text     = txt
-            d.Name.Position = Vector2.new(minX + w/2, minY - 18)
-            d.Name.Color    = color
-            d.Name.Visible  = true
-        else
-            d.Name.Visible = false
         end
-    else
-        d.Name.Visible = false
+
+        -- skip if override disabled
+        if not get("enabled") then
+            d.tracer.Visible = false
+            for _, ln in ipairs(d.lines) do ln.Visible = false end
+            d.fillBox.Visible = false; d.nameText.Visible = false; d.distanceText.Visible = false
+            d.healthBg.Visible = false; d.healthOutline.Visible = false; d.healthBar.Visible = false
+            local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                if d.originalDisplayDistance then humanoid.DisplayDistanceType = d.originalDisplayDistance end
+                if d.originalHealthDisplay then humanoid.HealthDisplayType = d.originalHealthDisplay end
+            end
+            continue
+        end
+
+        -- team filter
+        if get("showTeam") and player.Team and localPlayer.Team and player.Team == localPlayer.Team then
+            d.tracer.Visible = false
+            for _, ln in ipairs(d.lines) do ln.Visible = false end
+            d.fillBox.Visible = false; d.nameText.Visible = false; d.distanceText.Visible = false
+            d.healthBg.Visible = false; d.healthOutline.Visible = false; d.healthBar.Visible = false
+            local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                if d.originalDisplayDistance then humanoid.DisplayDistanceType = d.originalDisplayDistance end
+                if d.originalHealthDisplay then humanoid.HealthDisplayType = d.originalHealthDisplay end
+            end
+            continue
+        end
+
+        -- core
+        local char = player.Character
+        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char and char:FindFirstChild("Humanoid")
+        if rootPart and humanoid then
+            -- store originals
+            if not d.originalDisplayDistance then d.originalDisplayDistance = humanoid.DisplayDistanceType end
+            if not d.originalHealthDisplay then d.originalHealthDisplay = humanoid.HealthDisplayType end
+
+            -- distance check
+            local distSq = (rootPart.Position - localRoot.Position).Magnitude^2
+            local withinDist = distSq <= get("maxTextDistance")^2
+
+            -- humanoid display
+            if get("showName") and withinDist then
+                humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+            else
+                humanoid.DisplayDistanceType = d.originalDisplayDistance
+            end
+            if get("showHealthBar") and withinDist then
+                humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+            else
+                humanoid.HealthDisplayType = d.originalHealthDisplay
+            end
+
+            local screenPos, onScreen = camera:WorldToViewportPoint(rootPart.Position)
+            if onScreen and humanoid.Health > 0 then
+                -- bounding box
+                local cframe, size = char:GetBoundingBox()
+                local half = size * 0.5
+                local minX, minY = math.huge, math.huge
+                local maxX, maxY = -math.huge, -math.huge
+                for i = 1, 8 do
+                    local wp = cframe:PointToWorldSpace(bboxOffsets[i] * half)
+                    local sp, vis = camera:WorldToViewportPoint(wp)
+                    if vis then
+                        minX = math.min(minX, sp.X); minY = math.min(minY, sp.Y)
+                        maxX = math.max(maxX, sp.X); maxY = math.max(maxY, sp.Y)
+                    end
+                end
+                if minX > maxX then
+                    minX = screenPos.X - 20; minY = screenPos.Y - 50
+                    maxX = screenPos.X + 20; maxY = screenPos.Y + 50
+                end
+                local width, height = maxX - minX, maxY - minY
+
+                -- color
+                local colorBase = override.fallbackColor or ((get("useTeamColor") and player.Team) and player.TeamColor.Color) or get("fallbackColor")
+
+                -- fillBox
+                if get("fillBox") then
+                    d.fillBox.Color = get("fillBoxColor")
+                    d.fillBox.Transparency = get("fillTransparency")
+                    d.fillBox.Position = Vector2.new(minX, minY)
+                    d.fillBox.Size = Vector2.new(width, height)
+                    d.fillBox.Visible = true
+                else
+                    d.fillBox.Visible = false
+                end
+
+                -- corners
+                local cLen = math.clamp(width * 0.2, 4, 15)
+                local corners = {
+                    {Vector2.new(minX, minY), Vector2.new(minX + cLen, minY)},
+                    {Vector2.new(minX, minY), Vector2.new(minX, minY + cLen)},
+                    {Vector2.new(maxX - cLen, minY), Vector2.new(maxX, minY)},
+                    {Vector2.new(maxX, minY), Vector2.new(maxX, minY + cLen)},
+                    {Vector2.new(minX, maxY), Vector2.new(minX + cLen, maxY)},
+                    {Vector2.new(minX, maxY - cLen), Vector2.new(minX, maxY)},
+                    {Vector2.new(maxX - cLen, maxY), Vector2.new(maxX, maxY)},
+                    {Vector2.new(maxX, maxY - cLen), Vector2.new(maxX, maxY)},
+                }
+                for i, pts in ipairs(corners) do
+                    local ln = d.lines[i]
+                    if ln.ZIndex == 2 then
+                        ln.From, ln.To = pts[1], pts[2]
+                        ln.Color = colorBase
+                        ln.Thickness = get("boxThickness")
+                        ln.Visible = get("showBox")
+                    end
+                end
+
+                -- tracers
+                if get("tracers") and withinDist then
+                    local screenSize = camera.ViewportSize
+                    local originSetting = get("tracerOrigin"):lower()
+                    local origin = Vector2.new()
+                    if originSetting == "cursor" then
+                        origin = Vector2.new(mouse.X, mouse.Y + 50)
+                    elseif originSetting == "top" then
+                        origin = Vector2.new(screenSize.X/2, 0)
+                    elseif originSetting == "bottom" then
+                        origin = Vector2.new(screenSize.X/2, screenSize.Y)
+                    elseif originSetting == "left" then
+                        origin = Vector2.new(0, screenSize.Y/2)
+                    elseif originSetting == "right" then
+                        origin = Vector2.new(screenSize.X, screenSize.Y/2)
+                    elseif originSetting == "middle" then
+                        origin = Vector2.new(screenSize.X/2, screenSize.Y/2)
+                    end
+                    local center = Vector2.new(minX + width/2, minY + height/2)
+                    d.tracer.Transparency = get("tracerTransparency")
+                    d.tracer.From, d.tracer.To = origin, center
+                    d.tracer.Color = colorBase
+                    d.tracer.Thickness = get("boxThickness")
+                    d.tracer.Visible = true
+                else
+                    d.tracer.Visible = false
+                end
+
+                -- health bar
+                if get("showHealthBar") and withinDist then
+                    local ratio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                    local barTh, pad = 4, 4
+                    d.healthBg.Color = Color3.new(0, 0, 0)
+                    d.healthBg.Transparency = 0.5
+                    d.healthOutline.Color = Color3.new(0, 0, 0)
+                    d.healthOutline.Thickness = 1
+                    d.healthBar.Color = Color3.new(1 - ratio, ratio, 0)
+                    local pos = get("healthBarPosition"):lower()
+                    if pos == "left" then
+                        local x = minX - pad - barTh
+                        d.healthBg.Position, d.healthBg.Size = Vector2.new(x, minY), Vector2.new(barTh, height)
+                        d.healthOutline.Position, d.healthOutline.Size = Vector2.new(x-1, minY-1), Vector2.new(barTh+2, height+2)
+                        local h = height * ratio
+                        d.healthBar.Position, d.healthBar.Size = Vector2.new(x, maxY - h), Vector2.new(barTh, h)
+                    elseif pos == "right" then
+                        local x = maxX + pad
+                        d.healthBg.Position, d.healthBg.Size = Vector2.new(x, minY), Vector2.new(barTh, height)
+                        d.healthOutline.Position, d.healthOutline.Size = Vector2.new(x-1, minY-1), Vector2.new(barTh+2, height+2)
+                        local h = height * ratio
+                        d.healthBar.Position, d.healthBar.Size = Vector2.new(x, maxY - h), Vector2.new(barTh, h)
+                    elseif pos == "top" then
+                        local y = minY - pad - barTh
+                        d.healthBg.Position, d.healthBg.Size = Vector2.new(minX, y), Vector2.new(width, barTh)
+                        d.healthOutline.Position, d.healthOutline.Size = Vector2.new(minX-1, y-1), Vector2.new(width+2, barTh+2)
+                        local w = width * ratio
+                        d.healthBar.Position, d.healthBar.Size = Vector2.new(minX, y), Vector2.new(w, barTh)
+                    else
+                        local y = maxY + pad
+                        d.healthBg.Position, d.healthBg.Size = Vector2.new(minX, y), Vector2.new(width, barTh)
+                        d.healthOutline.Position, d.healthOutline.Size = Vector2.new(minX-1, y-1), Vector2.new(width+2, barTh+2)
+                        local w = width * ratio
+                        d.healthBar.Position, d.healthBar.Size = Vector2.new(minX, y), Vector2.new(w, barTh)
+                    end
+                    d.healthBg.Visible = true; d.healthOutline.Visible = true; d.healthBar.Visible = true
+                else
+                    d.healthBg.Visible = false; d.healthOutline.Visible = false; d.healthBar.Visible = false
+                end
+
+                -- distance text
+                if get("showDistance") and withinDist then
+                    d.distanceText.Size = get("textDistance")
+                    d.distanceText.Outline = get("outlineText")
+                    d.distanceText.Text = math.floor((rootPart.Position - localRoot.Position).Magnitude)
+                    d.distanceText.Position = Vector2.new(minX + width/2, maxY + 4)
+                    d.distanceText.Color = colorBase
+                    d.distanceText.Visible = true
+                else
+                    d.distanceText.Visible = false
+                end
+
+                -- name text
+                if get("showName") and withinDist then
+                    d.nameText.Size = get("textDistance")
+                    d.nameText.Outline = get("outlineText")
+                    local txt = (get("useDisplayName") and player.DisplayName) or player.Name
+                    if get("showTeamName") and player.Team then txt = txt .. " [" .. player.Team.Name .. "]" end
+                    d.nameText.Text = txt
+                    d.nameText.Position = Vector2.new(minX + width/2, minY - 18)
+                    d.nameText.Color = colorBase
+                    d.nameText.Visible = true
+                else
+                    d.nameText.Visible = false
+                end
+            else
+                -- off-screen or invalid
+                d.tracer.Visible = false
+                for _, ln in ipairs(d.lines) do ln.Visible = false end
+                d.fillBox.Visible = false; d.nameText.Visible = false; d.distanceText.Visible = false
+                d.healthBg.Visible = false; d.healthOutline.Visible = false; d.healthBar.Visible = false
+            end
+        else
+            -- no root or no humanoid
+            d.tracer.Visible = false
+            for _, ln in ipairs(d.lines) do ln.Visible = false end
+            d.fillBox.Visible = false; d.nameText.Visible = false; d.distanceText.Visible = false
+            d.healthBg.Visible = false; d.healthOutline.Visible = false; d.healthBar.Visible = false
+        end
     end
 end)
 
-return ESPModule
+return espModule
