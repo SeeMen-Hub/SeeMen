@@ -26,7 +26,6 @@ PathFindingModule.followPath = function(destination: Vector3, parameters: table)
 	end)
 
 	if success and path.Status == Enum.PathStatus.Success then
-		-- Get the path waypoints
 		waypoints = path:GetWaypoints()
 
 		-- Detect if path becomes blocked
@@ -54,7 +53,6 @@ PathFindingModule.followPath = function(destination: Vector3, parameters: table)
 			end)
 		end
 
-		-- Initially move to second waypoint (first waypoint is path start; skip it)
 		nextWaypointIndex = 2
 		humanoid:MoveTo(waypoints[nextWaypointIndex].Position)
 	else
