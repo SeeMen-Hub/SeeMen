@@ -1,7 +1,7 @@
-if game.PlaceId ~= 6428267216 then return warn("Incorrect Game") end
+if game.PlaceId ~= 95702387256198 then return warn("Incorrect Game") end
 
 local SeeMenGameStates = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/SeeMen-Hub/SeeMen/refs/heads/main/SeeMen-Game-States.luau"))()
-if SeeMenGameStates.DriftingOnABrick == false then return warn("Script is not currently supported.") end
+if SeeMenGameStates.StealACar == false then return warn("Script is not currently supported.") end
 
 local SeeMenUIModule = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/SeeMen-Hub/SeeMen/refs/heads/main/Utils/SeeMen-UI.luau"))()
 
@@ -39,3 +39,5 @@ local UIResults = SeeMenUIModule:Init({
 
 local Window = UIResults.Window
 local tabs = UIResults.Tabs
+
+table.find()
