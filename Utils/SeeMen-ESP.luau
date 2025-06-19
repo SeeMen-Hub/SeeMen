@@ -8,7 +8,6 @@ local camera = workspace.CurrentCamera
 local espModule = {}
 espModule.settings = {
     enabled = false,
-    _dropIn = false,
     showBox = false,
     boxThickness = 2,
     fillBox = false,
