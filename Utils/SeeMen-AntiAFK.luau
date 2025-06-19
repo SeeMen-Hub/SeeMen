@@ -1,4 +1,3 @@
--- Wait until game is loaded
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- Setup VirtualUser & Player
