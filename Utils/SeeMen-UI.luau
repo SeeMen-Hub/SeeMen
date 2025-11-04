@@ -4,7 +4,7 @@ function SeeMenModule:Init(config)
     repeat task.wait(0.1) until game:IsLoaded()
 
     local SeeMenESP = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/SeeMen-Hub/SeeMen/refs/heads/main/Utils/SeeMen-ESP.luau"))()
-    local PathFindingModule = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/SeeMen-Hub/SeeMen/refs/heads/main/Utils/SeeMen-PathFindingModule.luau"))()
+    --local PathFindingModule = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/SeeMen-Hub/SeeMen/refs/heads/main/Utils/SeeMen-PathFindingModule.luau"))()
     local AntiAFKModule = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/SeeMen-Hub/SeeMen/refs/heads/main/Utils/SeeMen-AntiAFK.luau"))()
 
     local espSettings = {
